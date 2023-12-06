@@ -12,7 +12,7 @@
 - стандартный вывод в терминал;
 - вывод в терминал в табличной форме (prettytable);
 - запись результатов работы в файл .csv.
-- 
+
 ### Технологии
 - Python 3.9
 - BeautifulSoup
@@ -44,7 +44,7 @@ pip install -r requirements.txt
 python main.py -h
 ```
 
-Запуск парсера, который скачивает архив документации Python.
+Запускает парсер, который скачивает архив документации Python.
 ```
 python main.py download
 ```
@@ -53,7 +53,7 @@ python main.py download
 ```
 python main.py pep -o pretty
 ```
-Создаст csv файл с таблицей со ссылками на новое в Python
+Создает csv файл с таблицей со ссылками на новое в Python
 ```
 python main.py latest-versions -o file
 ```
