@@ -1,6 +1,7 @@
 from urllib.parse import urljoin
 import re
 import logging
+from collections import defaultdict
 
 import requests_cache
 from bs4 import BeautifulSoup
@@ -84,6 +85,8 @@ def download(session):
     downloads_dir.mkdir(exist_ok=True)
     archive_path = downloads_dir / filename
     response = session.get(archive_url)
+    if response is None:
+        return
     with open(archive_path, 'wb') as file:
         file.write(response.content)
     logging.info(f'Архив был загружен и сохранён: {archive_path}')
@@ -100,37 +103,36 @@ def pep(session):
     rows_tag = table_tag.find_all('tr')
 
     results = [('Статус', 'Количество')]
-    total_peps_sum = 0
-    pep_status_sum = {}
+    pep_status_sum = defaultdict(int)
+    errors = []
 
     for row in tqdm(rows_tag):
-        total_peps_sum += 1
         status_tag = find_tag(row, 'abbr')
         preview_status = status_tag.text[1:]
         link = find_tag(row, 'a', attrs={
                         'class': 'pep reference internal'})['href']
         full_link = urljoin(PEP_LIST_URL, link)
         response = get_response(session, full_link)
+        if response is None:
+            continue
         soup = BeautifulSoup(response.text, features='lxml')
         table_info = find_tag(soup, 'dl',
                               attrs={'class': 'rfc2822 field-list simple'})
-        status_on_page = table_info.find(
+        status_on_page = find_tag(
+            table_info, '',
             string='Status').parent.find_next_sibling('dd').text
-        if status_on_page in pep_status_sum:
-            pep_status_sum[status_on_page] += 1
-        if status_on_page not in pep_status_sum:
-            pep_status_sum[status_on_page] = 1
+        pep_status_sum[status_on_page] += 1
         if status_on_page not in EXPECTED_STATUS[preview_status]:
             error_message = (f'Несовпадающие статусы:\n'
                              f'{full_link}\n'
                              f'Статус в карточке: {status_on_page}\n'
                              f'Ожидаемые статусы: '
                              f'{EXPECTED_STATUS[preview_status]}')
-            logging.warning(error_message)
-    for status in pep_status_sum:
-        results.append((status, pep_status_sum[status]))
-    results.append(('-----------', '-----------'))
-    results.append(('Total', total_peps_sum))
+            errors.append(error_message)
+    error_log = '\n'.join(errors)
+    logging.warning(error_log)
+    results.extend(pep_status_sum.items())
+    results.append(('Total', sum(pep_status_sum.values())))
     return results
 
 
